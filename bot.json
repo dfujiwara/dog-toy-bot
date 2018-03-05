@@ -1,0 +1,8 @@
+{
+    "muxbots_lib_version": "1.0",
+    "type": "feedbot",
+    "title": "Find the next toy for your doggy",
+    "intro_message": "What is going to the next toy for your doggy??",
+    "image": "dog.png",
+    "source_url": "dog_toy.js"
+}
