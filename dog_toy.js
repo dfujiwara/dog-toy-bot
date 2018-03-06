@@ -2,16 +2,31 @@
 global muxbots
 */
 
+const barkshopToys = {
+  url: 'https://www.barkshop.com/dog-toys',
+  parseToys: (pageContent, callback) => {
+    const pageContentJson = /window.page = (.*)/.exec(pageContent)[1]
+    const parsedJson = JSON.parse(pageContentJson)
+    const parsedToys = parsedJson.items.map((toyContent) => {
+      const url = toyContent.url
+      const name = toyContent.name
+      const imageURL = toyContent.images.grid[0].url
+      return { url, imageURL, name }
+    })
+    return parsedToys
+  }
+}
+
 muxbots.onFeedPull((callback) => {
-  if (shouldFetchRSS()) {
-    muxbots.http.get('https://www.barkshop.com/dog-toys', function (response) {
+  if (shouldFetchRSS(barkshopToys.url)) {
+    muxbots.http.get(barkshopToys.url, (response) => {
       if (!response.data) {
         muxbots.newResponse()
           .send(callback, 'Error fetching the doggy toys.')
         return
       }
-      recordFetchTime()
-      const parsedToys = parseToys(response.data)
+      recordFetchTime(barkshopToys.url)
+      const parsedToys = barkshopToys.parseToys(response.data)
       muxbots.localStorage.setItem('toys', parsedToys)
       const toy = getUnseenToy(parsedToys)
       fetchFullToyPage(toy, callback)
@@ -23,20 +38,8 @@ muxbots.onFeedPull((callback) => {
   }
 })
 
-const parseToys = (pageContent, callback) => {
-  const pageContentJson = /window.page = (.*)/.exec(pageContent)[1]
-  const parsedJson = JSON.parse(pageContentJson)
-  const parsedToys = parsedJson.items.map((toyContent) => {
-    const url = toyContent.url
-    const name = toyContent.name
-    const imageURL = toyContent.images.grid[0].url
-    return {url, imageURL, name}
-  })
-  return parsedToys
-}
-
-const shouldFetchRSS = () => {
-  const lastFetchTime = muxbots.localStorage.getItem('lastFetchTime')
+const shouldFetchRSS = (url) => {
+  const lastFetchTime = muxbots.localStorage.getItem(`lastFetchTime-${url}`)
   if (lastFetchTime === undefined) {
     return true
   }
@@ -45,9 +48,9 @@ const shouldFetchRSS = () => {
   return (currentDate.getTime() - lastFetchTime) > 300000
 }
 
-const recordFetchTime = () => {
+const recordFetchTime = (url) => {
   const currentDate = new Date()
-  muxbots.localStorage.setItem('lastFetchTime', currentDate.getTime())
+  muxbots.localStorage.setItem(`lastFetchTime-${url}`, currentDate.getTime())
 }
 
 const getUnseenToy = (toys) => {
