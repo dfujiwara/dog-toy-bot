@@ -89,7 +89,8 @@ const getUnseenToy = (toys) => {
   let viewedURLSet = new Set(viewedURLs)
   let newViewedURLs = []
   let unseenToy = null
-  toys.forEach((toy) => {
+  const shuffledToys = shuffleToys(toys)
+  shuffledToys.forEach((toy) => {
     if (viewedURLSet.has(toy.url)) {
       newViewedURLs.push(toy.url)
     } else {
@@ -101,6 +102,17 @@ const getUnseenToy = (toys) => {
   }
   muxbots.localStorage.setItem('viewedURLs', newViewedURLs)
   return unseenToy
+}
+
+const shuffleToys = (toys) => {
+  const length = toys.length - 1
+  for (var i = length; i >= 0; i--) {
+    const randomIndex = Math.floor(Math.random() * (i + 1))
+    const itemAtIndex = toys[randomIndex]
+    toys[randomIndex] = toys[i]
+    toys[i] = itemAtIndex
+  }
+  return toys
 }
 
 const fetchFullToyPage = (toy, callback) => {
