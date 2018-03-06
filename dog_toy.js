@@ -4,7 +4,7 @@ global muxbots
 
 const barkshopToys = {
   url: 'https://www.barkshop.com/dog-toys',
-  parseToys: (pageContent, callback) => {
+  parseToys: (pageContent) => {
     const pageContentJson = /window.page = (.*)/.exec(pageContent)[1]
     const parsedJson = JSON.parse(pageContentJson)
     const parsedToys = parsedJson.items.map((toyContent) => {
@@ -17,19 +17,50 @@ const barkshopToys = {
   }
 }
 
+const muttropolisToys = {
+  url: 'https://www.muttropolis.com/dog-toys/browse/perpage/100',
+  parseToys: (pageContent) => {
+    const products = pageContent.split('<article class="productListing ">')
+    products.shift()
+    const parsedToys = products.map((product) => {
+      const urlResults = /<a class="product" href="(.*)" title="(.*)" >/.exec(product)
+      const url = encodeURI(urlResults[1])
+      const name = urlResults[2]
+      const imageResults = /<img src="(.*)" alt=".*" \/>/.exec(product)
+      const imageURL = imageResults[1]
+      return { url, imageURL, name }
+    })
+    return parsedToys
+  }
+}
+
 muxbots.onFeedPull((callback) => {
-  if (shouldFetchRSS(barkshopToys.url)) {
-    muxbots.http.get(barkshopToys.url, (response) => {
+  if (shouldFetchRSS()) {
+    const toySites = [barkshopToys, muttropolisToys]
+    let toySiteData = {}
+    const syncCallback = (toySite, response) => {
       if (!response.data) {
-        muxbots.newResponse()
-          .send(callback, 'Error fetching the doggy toys.')
-        return
+        toySiteData[`${toySite.url}`] = []
+      } else {
+        const parsedToys = toySite.parseToys(response.data)
+        toySiteData[`${toySite.url}`] = parsedToys
       }
-      recordFetchTime(barkshopToys.url)
-      const parsedToys = barkshopToys.parseToys(response.data)
-      muxbots.localStorage.setItem('toys', parsedToys)
-      const toy = getUnseenToy(parsedToys)
-      fetchFullToyPage(toy, callback)
+      if (Object.keys(toySiteData).length === toySites.length) {
+        recordFetchTime()
+        let combinedParsedToys = []
+        Object.values(toySiteData).forEach((toys) => {
+          combinedParsedToys = combinedParsedToys.concat(toys)
+        })
+        muxbots.localStorage.setItem('toys', combinedParsedToys)
+        const toy = getUnseenToy(combinedParsedToys)
+        fetchFullToyPage(toy, callback)
+      }
+    }
+
+    toySites.forEach((toySite) => {
+      muxbots.http.get(toySite.url, (response) => {
+        syncCallback(toySite, response)
+      })
     })
   } else {
     const toys = muxbots.localStorage.getItem('toys')
@@ -38,8 +69,8 @@ muxbots.onFeedPull((callback) => {
   }
 })
 
-const shouldFetchRSS = (url) => {
-  const lastFetchTime = muxbots.localStorage.getItem(`lastFetchTime-${url}`)
+const shouldFetchRSS = () => {
+  const lastFetchTime = muxbots.localStorage.getItem('lastFetchTime')
   if (lastFetchTime === undefined) {
     return true
   }
@@ -48,9 +79,9 @@ const shouldFetchRSS = (url) => {
   return (currentDate.getTime() - lastFetchTime) > 300000
 }
 
-const recordFetchTime = (url) => {
+const recordFetchTime = () => {
   const currentDate = new Date()
-  muxbots.localStorage.setItem(`lastFetchTime-${url}`, currentDate.getTime())
+  muxbots.localStorage.setItem('lastFetchTime', currentDate.getTime())
 }
 
 const getUnseenToy = (toys) => {
