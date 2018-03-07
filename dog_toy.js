@@ -46,8 +46,7 @@ muxbots.onFeedPull((callback) => {
     })
     Promise.all(promises).then((dataBundle) => {
       let toysNestedArray = dataBundle.map((currentBundle) => {
-        const response = currentBundle.response
-        const toySite = currentBundle.toySite
+        const {response, toySite} = currentBundle
         let parsedToys
         if (!response.data) {
           parsedToys = []
