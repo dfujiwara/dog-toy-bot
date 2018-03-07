@@ -37,30 +37,38 @@ const muttropolisToys = {
 muxbots.onFeedPull((callback) => {
   if (shouldFetchRSS()) {
     const toySites = [barkshopToys, muttropolisToys]
-    let toySiteData = {}
-    const syncCallback = (toySite, response) => {
-      if (!response.data) {
-        toySiteData[`${toySite.url}`] = []
-      } else {
-        const parsedToys = toySite.parseToys(response.data)
-        toySiteData[`${toySite.url}`] = parsedToys
-      }
-      if (Object.keys(toySiteData).length === toySites.length) {
-        recordFetchTime()
-        let combinedParsedToys = []
-        Object.values(toySiteData).forEach((toys) => {
-          combinedParsedToys = combinedParsedToys.concat(toys)
+    const promises = toySites.map((toySite) => {
+      return new Promise((resolve, reject) => {
+        muxbots.http.get(toySite.url, (response) => {
+          resolve({response, toySite})
         })
-        muxbots.localStorage.setItem('toys', combinedParsedToys)
-        const toy = getUnseenToy(combinedParsedToys)
-        fetchFullToyPage(toy, callback)
-      }
-    }
-
-    toySites.forEach((toySite) => {
-      muxbots.http.get(toySite.url, (response) => {
-        syncCallback(toySite, response)
       })
+    })
+    Promise.all(promises).then((dataBundle) => {
+      let toysNestedArray = dataBundle.map((currentBundle) => {
+        const response = currentBundle.response
+        const toySite = currentBundle.toySite
+        let parsedToys
+        if (!response.data) {
+          parsedToys = []
+        } else {
+          parsedToys = toySite.parseToys(response.data)
+        }
+        return parsedToys
+      })
+      recordFetchTime()
+      let combinedParsedToys = []
+      toysNestedArray.forEach((toys) => {
+        combinedParsedToys = combinedParsedToys.concat(toys)
+      })
+      muxbots.localStorage.setItem('toys', combinedParsedToys)
+      const toy = getUnseenToy(combinedParsedToys)
+      fetchFullToyPage(toy, callback)
+    }).catch((err) => {
+      console.log(err)
+      muxbots.newResponse()
+        .addMessage('Error fetching the toys')
+        .send(callback)
     })
   } else {
     const toys = muxbots.localStorage.getItem('toys')
@@ -116,6 +124,12 @@ const shuffleToys = (toys) => {
 }
 
 const fetchFullToyPage = (toy, callback) => {
+  if (!toy) {
+    muxbots.newResponse()
+      .addMessage('No more toys to show for now')
+      .send(callback)
+    return
+  }
   muxbots.newResponse()
     .addWebpage(muxbots.newWebpage()
       .setURL(toy.url)
