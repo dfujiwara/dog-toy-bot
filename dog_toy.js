@@ -66,7 +66,7 @@ muxbots.onFeedPull((callback) => {
     }).catch((err) => {
       console.log(err)
       muxbots.newResponse()
-        .addMessage('Error fetching the toys')
+        .addNoResultsMessage('Error fetching the toys.')
         .send(callback)
     })
   } else {
@@ -125,7 +125,7 @@ const shuffleToys = (toys) => {
 const fetchFullToyPage = (toy, callback) => {
   if (!toy) {
     muxbots.newResponse()
-      .addMessage('No more toys to show for now')
+      .addNoResultsMessage('No more toys to show for now.')
       .send(callback)
     return
   }
