@@ -4,5 +4,6 @@
     "title": "Find the next toy for your doggy",
     "intro_message": "What is going to the next toy for your doggy??",
     "image": "dog.png",
-    "source_url": "dog_toy.js"
+    "source_url": "dog_toy.js",
+    "published_url": "https://dfujiwara.github.io/dog-toy-bot/chatbot.json"
 }
